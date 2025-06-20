@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>لعبة Bubu للأطفال</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+    canvas { display: block; margin: auto; touch-action: none; }
+    #touch-controls {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+    }
+    .btn {
+      background-color: rgba(255,255,255,0.5);
+      border: 2px solid #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 0 10px;
+      font-size: 24px;
+      display: inline-block;
+      user-select: none;
+    }
+    #endText {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px; color: white; background: rgba(0,0,0,0.6);
+      padding: 20px; display: none; border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="touch-controls">
+  <div class="btn" id="left">◀️</div>
+  <div class="btn" id="jump">🕴️</div>
+  <div class="btn" id="right">▶️</div>
+</div>
+
+<div id="endText">🎉 مبروك! وصلت للنهاية</div>
+
+<script>
+const config = {
+  type: Phaser.AUTO,
+  width: 800,
+  height: 400,
+  physics: {
+    default: 'arcade',
+    arcade: { gravity: { y: 500 }, debug: false }
+  },
+  scene: { preload, create, update }
+};
+
+let player, cursors, coins, score = 0, scoreText, endLine, endText, music;
+let leftDown = false, rightDown = false, jumpDown = false;
+
+const game = new Phaser.Game(config);
+
+function preload() {
+  this.load.image('sky', 'https://labs.phaser.io/assets/skies/sky4.png');
+  this.load.image('ground', 'https://labs.phaser.io/assets/sprites/platform.png');
+  this.load.image('coin', 'https://labs.phaser.io/assets/sprites/coin.png');
+  this.load.spritesheet('bubu', 'https://labs.phaser.io/assets/sprites/dude.png', { frameWidth: 32, frameHeight: 48 });
+  this.load.audio('bg', 'https://labs.phaser.io/assets/audio/loopMono.ogg');
+}
+
+function create() {
+  this.add.image(400, 200, 'sky');
+  music = this.sound.add('bg', { loop: true, volume: 0.3 });
+  music.play();
+
+  const platforms = this.physics.add.staticGroup();
+  platforms.create(400, 390, 'ground').setScale(2).refreshBody();
+  platforms.create(600, 250, 'ground');
+  platforms.create(50, 180, 'ground');
+
+  player = this.physics.add.sprite(100, 300, 'bubu');
+  player.setBounce(0.2);
+  player.setCollideWorldBounds(true);
+
+  this.anims.create({ key: 'left', frames: this.anims.generateFrameNumbers('bubu', { start: 0, end: 3 }), frameRate: 10, repeat: -1 });
+  this.anims.create({ key: 'turn', frames: [{ key: 'bubu', frame: 4 }], frameRate: 20 });
+  this.anims.create({ key: 'right', frames: this.anims.generateFrameNumbers('bubu', { start: 5, end: 8 }), frameRate: 10, repeat: -1 });
+
+  this.physics.add.collider(player, platforms);
+  cursors = this.input.keyboard.createCursorKeys();
+
+  coins = this.physics.add.group({ key: 'coin', repeat: 6, setXY: { x: 150, y: 0, stepX: 100 } });
+  coins.children.iterate((coin) => { coin.setBounceY(Phaser.Math.FloatBetween(0.3, 0.5)); });
+  this.physics.add.collider(coins, platforms);
+  this.physics.add.overlap(player, coins, collectCoin, null, this);
+
+  scoreText = this.add.text(16, 16, 'العملات: 0', { fontSize: '20px', fill: '#fff' });
+
+  endLine = this.physics.add.staticSprite(780, 350, 'ground').setScale(0.3, 0.1).refreshBody();
+  this.physics.add.collider(player, endLine, win, null, this);
+
+  endText = document.getElementById('endText');
+
+  // التحكم باللمس
+  document.getElementById('left').addEventListener('touchstart', () => leftDown = true);
+  document.getElementById('left').addEventListener('touchend', () => leftDown = false);
+  document.getElementById('right').addEventListener('touchstart', () => rightDown = true);
+  document.getElementById('right').addEventListener('touchend', () => rightDown = false);
+  document.getElementById('jump').addEventListener('touchstart', () => jumpDown = true);
+  document.getElementById('jump').addEventListener('touchend', () => jumpDown = false);
+}
+
+function update() {
+  if (!player.active) return;
+  player.setVelocityX(0);
+
+  if (leftDown) {
+    player.setVelocityX(-160);
+    player.anims.play('left', true);
+  } else if (rightDown) {
+    player.setVelocityX(160);
+    player.anims.play('right', true);
+  } else {
+    player.anims.play('turn');
+  }
+
+  if ((jumpDown || cursors.up.isDown) && player.body.touching.down) {
+    player.setVelocityY(-330);
+  }
+}
+
+function collectCoin(player, coin) {
+  coin.disableBody(true, true);
+  score += 10;
+  scoreText.setText('العملات: ' + score);
+}
+
+function win() {
+  this.physics.pause();
+  player.setTint(0x00ff00);
+  endText.style.display = 'block';
+  music.stop();
+}
+</script>
+
+</body>
+</html>
